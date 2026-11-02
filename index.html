@@ -17,6 +17,9 @@
   #overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   #status { position:absolute; left:0; right:0; bottom:0; padding:6px 12px; background:rgba(0,0,0,.55); font-weight:600; min-height:32px; }
   #status.ok { color:var(--ok); } #status.bad { color:var(--bad); }
+  #status .big { font-size:28px; font-weight:700; line-height:1.15; }
+  #status .small { font-size:13px; font-weight:500; color:#ddd; margin-top:2px; word-break:break-all; }
+  #status .small.warn { color:#ffb020; font-weight:600; }
   #bar, #bar2 { display:flex; gap:8px; padding:8px 12px; align-items:center; }
   #count { flex:1; font-size:20px; font-weight:700; }
   button { background:var(--card); color:var(--fg); border:1px solid #333; border-radius:10px; padding:12px 14px; font:inherit; font-weight:600; }
@@ -91,7 +94,7 @@
   </div>
 </div>
 
-<script src="bwip-js.min.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="bwip-js.min.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

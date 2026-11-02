@@ -1,6 +1,6 @@
 'use strict';
-var CACHE = 'scanner-v7';
-var FILES = ['./', 'index.html', 'app.js?v=7', 'bwip-js.min.js?v=7', 'manifest.json', 'icon.svg'];
+var CACHE = 'scanner-v8';
+var FILES = ['./', 'index.html', 'app.js?v=8', 'bwip-js.min.js?v=8', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }));

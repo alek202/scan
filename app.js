@@ -45,7 +45,21 @@ function beep(kind) {
   try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : [80, 60, 80]); } catch (e) {}
 }
 
-function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = cls || ''; }
+// Крупная строка + мелкие пояснения (sub: строка или массив строк; предупреждения идут оранжевым)
+function setStatus(text, cls, sub, warn) {
+  statusEl.className = cls || '';
+  statusEl.textContent = '';
+  var big = document.createElement('div'); big.className = 'big'; big.textContent = text;
+  statusEl.appendChild(big);
+  (sub ? [].concat(sub) : []).forEach(function (t, i) {
+    var d = document.createElement('div'); d.className = 'small' + (warn && i === 0 ? ' warn' : '');
+    d.textContent = t; statusEl.appendChild(d);
+  });
+}
+function fmtWhen(t) {
+  var d = new Date(t);
+  return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear() + ' в ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
 
 // ---------- разбор кода ----------
 function normalize(raw) {
@@ -81,7 +95,7 @@ function addCode(raw) {
   lastSeen[s] = now;
   if (!isMarking(s)) {
     beep('bad');
-    setStatus('Это не код маркировки: ' + s.slice(0, 40), 'bad');
+    setStatus('Это не код маркировки', 'bad', s.slice(0, 40).split(GS).join('\u241d'));
     return;
   }
   if (codes.indexOf(s) !== -1) {
@@ -89,10 +103,15 @@ function addCode(raw) {
     setStatus('Уже есть в списке (№' + (codes.indexOf(s) + 1) + ')', 'bad');
     return;
   }
+  var prev = null;
+  for (var k = journal.length - 1; k >= 0; k--) { if (journal[k].c === s) { prev = journal[k]; break; } }
   codes.push(s); save();
   journal.push({ t: Date.now(), c: s }); saveJournal();
   render(); beep('ok');
-  setStatus('Принят № ' + codes.length + ': ' + s.slice(0, 34), 'ok');
+  var sub = [];
+  if (prev) sub.push('Этот код уже сканировали: ' + fmtWhen(prev.t));
+  sub.push(s.slice(0, 34).split(GS).join('\u241d'));
+  setStatus('Принят № ' + codes.length, 'ok', sub, !!prev);
 }
 
 // ---------- камера и распознавание ----------
