@@ -13,10 +13,12 @@ var btnUndo = el('btnUndo'), btnClear = el('btnClear');
 var codes = [];
 var stream = null, track = null, detector = null, torchOn = false, scanning = false;
 var lastSeen = {}, wakeLock = null, audio = null;
-var viewIndex = 0, viewMode = 'dm';
+var viewIndex = 0, viewMode = 'qr';
 
 try { codes = JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { codes = []; }
-try { viewMode = localStorage.getItem(MODE_STORE) || 'dm'; } catch (e) { viewMode = 'dm'; }
+try { viewMode = localStorage.getItem(MODE_STORE) || 'qr'; } catch (e) { viewMode = 'qr'; }
+if (viewMode === 'dm') viewMode = 'dmA';
+if (['qr','dmA','dmB','dmC'].indexOf(viewMode) === -1) viewMode = 'qr';
 
 function save() { try { localStorage.setItem(STORE, JSON.stringify(codes)); } catch (e) {} }
 
@@ -167,22 +169,52 @@ document.addEventListener('visibilitychange', function () {
 });
 
 // ---------- показ кодов ----------
+var MODES = ['qr', 'dmA', 'dmB', 'dmC'];
+var MODE_NAMES = { qr: 'QR', dmA: 'DM-A', dmB: 'DM-B', dmC: 'DM-C' };
+
+function esc(t) { return t.replace(/\^/g, '^094'); }
+
+// Разбор кода на части для режима DM-B: (01)gtin(21)serial(91)..(92)..
+function toGs1Text(c) {
+  var parts = c.split(GS);
+  var m = /^01(\d{14})21(.+)$/.exec(parts[0]);
+  if (!m) throw new Error('не удалось разобрать код на части');
+  var t = '(01)' + m[1] + '(21)' + m[2];
+  for (var i = 1; i < parts.length; i++) {
+    if (!/^\d{2}/.test(parts[i])) throw new Error('часть без номера: ' + parts[i].slice(0, 6));
+    t += '(' + parts[i].slice(0, 2) + ')' + parts[i].slice(2);
+  }
+  return t;
+}
+
 function drawCode() {
   var c = codes[viewIndex];
-  el('vinfo').textContent = (viewIndex + 1) + ' из ' + codes.length + (viewMode === 'dm' ? '  (Data Matrix)' : '  (QR)');
-  el('vtxt').textContent = c.split(GS).join('␝');
+  var next = MODES[(MODES.indexOf(viewMode) + 1) % MODES.length];
+  el('vinfo').textContent = (viewIndex + 1) + ' из ' + codes.length + '  (' + MODE_NAMES[viewMode] + ')';
+  el('vtxt').textContent = c.split(GS).join('\u241d');
   el('vPrev').disabled = viewIndex === 0;
   el('vNext').disabled = viewIndex >= codes.length - 1;
-  el('vMode').textContent = viewMode === 'dm' ? 'QR' : 'DM';
+  el('vMode').textContent = MODE_NAMES[next];
   var cv = el('vcode');
+  var base = { scale: 6, padding: 10, backgroundcolor: 'FFFFFF' };
+  var o;
   try {
-    if (viewMode === 'dm') {
-      // GS1 DataMatrix: FNC1 в начале и FNC1 вместо разделителя GS
-      bwipjs.toCanvas(cv, { bcid: 'datamatrix', text: '^FNC1' + c.split(GS).join('^FNC1'), parse: true, scale: 6, padding: 10, backgroundcolor: 'FFFFFF' });
+    if (viewMode === 'dmA') {
+      // FNC1 в начале и FNC1 вместо разделителя GS
+      o = { bcid: 'datamatrix', text: '^FNC1' + esc(c).split(GS).join('^FNC1'), parsefnc: true };
+    } else if (viewMode === 'dmB') {
+      // библиотека сама строит GS1 DataMatrix по частям (01)(21)(91)(92)
+      o = { bcid: 'gs1datamatrix', text: toGs1Text(c) };
+    } else if (viewMode === 'dmC') {
+      // обычный DataMatrix без признака GS1, в тексте настоящие GS
+      o = { bcid: 'datamatrix', text: esc(c).split(GS).join('^029'), parsefnc: true };
     } else {
-      bwipjs.toCanvas(cv, { bcid: 'qrcode', text: c, scale: 6, padding: 10, backgroundcolor: 'FFFFFF', eclevel: 'M' });
+      o = { bcid: 'qrcode', text: c, eclevel: 'M' };
     }
+    Object.keys(base).forEach(function (k) { o[k] = base[k]; });
+    bwipjs.toCanvas(cv, o);
   } catch (e) {
+    cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
     el('vtxt').textContent = 'Ошибка рисования: ' + e;
   }
 }
@@ -202,7 +234,7 @@ btnClear.addEventListener('click', function () {
 el('vPrev').addEventListener('click', function () { if (viewIndex > 0) { viewIndex--; drawCode(); } });
 el('vNext').addEventListener('click', function () { if (viewIndex < codes.length - 1) { viewIndex++; drawCode(); } });
 el('vMode').addEventListener('click', function () {
-  viewMode = viewMode === 'dm' ? 'qr' : 'dm';
+  viewMode = MODES[(MODES.indexOf(viewMode) + 1) % MODES.length];
   try { localStorage.setItem(MODE_STORE, viewMode); } catch (e) {}
   drawCode();
 });

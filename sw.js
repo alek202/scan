@@ -1,5 +1,5 @@
 'use strict';
-var CACHE = 'scanner-v2';
+var CACHE = 'scanner-v5';
 var FILES = ['./', 'index.html', 'app.js', 'bwip-js.min.js', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', function (e) {
