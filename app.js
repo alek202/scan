@@ -3,6 +3,7 @@
 var GS = String.fromCharCode(29);
 var STORE = 'scanner.codes.v1';
 var MODE_STORE = 'scanner.mode.v1';
+var JOURNAL = 'scanner.journal.v1';
 
 var el = function (id) { return document.getElementById(id); };
 var video = el('video'), overlay = el('overlay'), statusEl = el('status');
@@ -19,6 +20,14 @@ try { codes = JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { cod
 try { viewMode = localStorage.getItem(MODE_STORE) || 'qr'; } catch (e) { viewMode = 'qr'; }
 if (viewMode === 'dm') viewMode = 'dmA';
 if (['qr','dmA','dmB','dmC'].indexOf(viewMode) === -1) viewMode = 'qr';
+
+var journal = [];
+try { journal = JSON.parse(localStorage.getItem(JOURNAL) || '[]'); } catch (e) { journal = []; }
+(function pruneJournal() {
+  var lim = Date.now() - 90 * 24 * 3600 * 1000;
+  journal = journal.filter(function (j) { return j.t >= lim; });
+})();
+function saveJournal() { try { localStorage.setItem(JOURNAL, JSON.stringify(journal)); } catch (e) {} }
 
 function save() { try { localStorage.setItem(STORE, JSON.stringify(codes)); } catch (e) {} }
 
@@ -80,7 +89,9 @@ function addCode(raw) {
     setStatus('Уже есть в списке (№' + (codes.indexOf(s) + 1) + ')', 'bad');
     return;
   }
-  codes.push(s); save(); render(); beep('ok');
+  codes.push(s); save();
+  journal.push({ t: Date.now(), c: s }); saveJournal();
+  render(); beep('ok');
   setStatus('Принят № ' + codes.length + ': ' + s.slice(0, 34), 'ok');
 }
 
@@ -227,7 +238,11 @@ function openViewer() {
 btnStart.addEventListener('click', function () { beep('dup'); startCamera(); });
 btnTorch.addEventListener('click', toggleTorch);
 btnShow.addEventListener('click', openViewer);
-btnUndo.addEventListener('click', function () { codes.pop(); save(); render(); });
+btnUndo.addEventListener('click', function () {
+  var last = codes.pop(); save();
+  for (var i = journal.length - 1; i >= 0; i--) { if (journal[i].c === last) { journal.splice(i, 1); break; } }
+  saveJournal(); render();
+});
 btnClear.addEventListener('click', function () {
   if (confirm('Удалить все ' + codes.length + ' кодов из списка?')) { codes = []; save(); render(); }
 });
@@ -245,3 +260,60 @@ render();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(function () {});
 }
+
+// ---------- журнал за день ----------
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function dayKey(t) { var d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function dayEntries(key) { return journal.filter(function (j) { return dayKey(j.t) === key; }); }
+
+function updateJournalInfo() {
+  var key = el('jDate').value;
+  var n = key ? dayEntries(key).length : 0;
+  el('jInfo').textContent = key ? ('Кодов за этот день: ' + n) : 'Выберите дату';
+  el('jShare').disabled = n === 0; el('jSave').disabled = n === 0;
+}
+
+function buildCsv(key) {
+  var rows = ['Дата;Время;№;Код (разделители показаны как ␝);Код (как есть, с разделителями GS)'];
+  dayEntries(key).forEach(function (j, i) {
+    var d = new Date(j.t);
+    var tm = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    var vis = j.c.split(GS).join('\u241d');
+    rows.push([key, tm, i + 1, '"' + vis.replace(/"/g, '""') + '"', '"' + j.c.replace(/"/g, '""') + '"'].join(';'));
+  });
+  return '\ufeff' + rows.join('\r\n') + '\r\n';
+}
+
+function makeFile(key) {
+  var name = 'коды-' + key + '.csv';
+  var blob = new Blob([buildCsv(key)], { type: 'text/csv;charset=utf-8' });
+  return { name: name, blob: blob };
+}
+
+function saveFile() {
+  var f = makeFile(el('jDate').value);
+  var u = URL.createObjectURL(f.blob);
+  var a = document.createElement('a');
+  a.href = u; a.download = f.name; document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(u); a.remove(); }, 1000);
+  el('jInfo').textContent = 'Файл сохранён в «Загрузки»: ' + f.name;
+}
+
+function shareFile() {
+  var f = makeFile(el('jDate').value);
+  var file = new File([f.blob], f.name, { type: 'text/csv' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: f.name }).catch(function () {});
+  } else {
+    saveFile();
+  }
+}
+
+el('btnJournal').addEventListener('click', function () {
+  el('jDate').value = dayKey(Date.now());
+  updateJournalInfo(); el('jrn').classList.add('on');
+});
+el('jDate').addEventListener('change', updateJournalInfo);
+el('jShare').addEventListener('click', shareFile);
+el('jSave').addEventListener('click', saveFile);
+el('jClose').addEventListener('click', function () { el('jrn').classList.remove('on'); });

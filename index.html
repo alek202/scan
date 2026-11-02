@@ -36,6 +36,13 @@
   #vbtns { display:flex; gap:10px; width:100%; max-width:520px; padding-bottom:10px; }
   #vbtns button { flex:1; background:#eee; color:#000; border-color:#ccc; font-size:18px; padding:16px 8px; }
   #vbtns button.main { background:var(--acc); color:#fff; }
+  #jrn { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:20; padding:16px; }
+  #jrn.on { display:flex; }
+  .jbox { background:var(--card); border-radius:14px; padding:18px; width:100%; max-width:420px; display:flex; flex-direction:column; gap:12px; }
+  .jtitle { font-size:20px; font-weight:700; }
+  .jbox input { background:#000; color:var(--fg); border:1px solid #333; border-radius:8px; padding:10px; font:inherit; margin-left:8px; }
+  #jInfo { color:var(--mut); min-height:1.4em; }
+  .jbtns { display:flex; flex-direction:column; gap:8px; }
   #vtxt { font:11px ui-monospace,monospace; color:#555; word-break:break-all; max-height:3.4em; overflow:hidden; text-align:center; padding:0 8px; }
 </style>
 </head>
@@ -56,6 +63,20 @@
 <div id="bar2">
   <button id="btnUndo" disabled>Убрать последний</button>
   <button id="btnClear" class="danger" disabled>Очистить всё</button>
+  <button id="btnJournal">Журнал</button>
+</div>
+
+<div id="jrn">
+  <div class="jbox">
+    <div class="jtitle">Журнал кодов</div>
+    <label>Дата <input type="date" id="jDate"></label>
+    <div id="jInfo"></div>
+    <div class="jbtns">
+      <button id="jShare" class="main">Отправить файл</button>
+      <button id="jSave">Сохранить файл</button>
+      <button id="jClose">Закрыть</button>
+    </div>
+  </div>
 </div>
 
 <div id="viewer">
