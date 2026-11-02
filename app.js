@@ -14,12 +14,12 @@ var btnUndo = el('btnUndo'), btnClear = el('btnClear');
 var codes = [];
 var stream = null, track = null, detector = null, torchOn = false, scanning = false;
 var lastSeen = {}, wakeLock = null, audio = null;
-var viewIndex = 0, viewMode = 'qr';
+var viewIndex = 0, viewMode = 'dmA';
 
 try { codes = JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { codes = []; }
-try { viewMode = localStorage.getItem(MODE_STORE) || 'qr'; } catch (e) { viewMode = 'qr'; }
+try { viewMode = localStorage.getItem(MODE_STORE) || 'dmA'; } catch (e) { viewMode = 'dmA'; }
 if (viewMode === 'dm') viewMode = 'dmA';
-if (['qr','dmA','dmB','dmC'].indexOf(viewMode) === -1) viewMode = 'qr';
+if (['dmA','qr'].indexOf(viewMode) === -1) viewMode = 'dmA';
 
 var journal = [];
 try { journal = JSON.parse(localStorage.getItem(JOURNAL) || '[]'); } catch (e) { journal = []; }
@@ -180,23 +180,10 @@ document.addEventListener('visibilitychange', function () {
 });
 
 // ---------- показ кодов ----------
-var MODES = ['qr', 'dmA', 'dmB', 'dmC'];
-var MODE_NAMES = { qr: 'QR', dmA: 'DM-A', dmB: 'DM-B', dmC: 'DM-C' };
+var MODES = ['dmA', 'qr'];
+var MODE_NAMES = { dmA: 'Data Matrix', qr: 'QR' };
 
 function esc(t) { return t.replace(/\^/g, '^094'); }
-
-// Разбор кода на части для режима DM-B: (01)gtin(21)serial(91)..(92)..
-function toGs1Text(c) {
-  var parts = c.split(GS);
-  var m = /^01(\d{14})21(.+)$/.exec(parts[0]);
-  if (!m) throw new Error('не удалось разобрать код на части');
-  var t = '(01)' + m[1] + '(21)' + m[2];
-  for (var i = 1; i < parts.length; i++) {
-    if (!/^\d{2}/.test(parts[i])) throw new Error('часть без номера: ' + parts[i].slice(0, 6));
-    t += '(' + parts[i].slice(0, 2) + ')' + parts[i].slice(2);
-  }
-  return t;
-}
 
 function drawCode() {
   var c = codes[viewIndex];
@@ -211,14 +198,8 @@ function drawCode() {
   var o;
   try {
     if (viewMode === 'dmA') {
-      // FNC1 в начале и FNC1 вместо разделителя GS
+      // GS1 DataMatrix: FNC1 в начале и FNC1 вместо разделителя GS
       o = { bcid: 'datamatrix', text: '^FNC1' + esc(c).split(GS).join('^FNC1'), parsefnc: true };
-    } else if (viewMode === 'dmB') {
-      // библиотека сама строит GS1 DataMatrix по частям (01)(21)(91)(92)
-      o = { bcid: 'gs1datamatrix', text: toGs1Text(c) };
-    } else if (viewMode === 'dmC') {
-      // обычный DataMatrix без признака GS1, в тексте настоящие GS
-      o = { bcid: 'datamatrix', text: esc(c).split(GS).join('^029'), parsefnc: true };
     } else {
       o = { bcid: 'qrcode', text: c, eclevel: 'M' };
     }

@@ -1,6 +1,6 @@
 'use strict';
-var CACHE = 'scanner-v6';
-var FILES = ['./', 'index.html', 'app.js', 'bwip-js.min.js', 'manifest.json', 'icon.svg'];
+var CACHE = 'scanner-v7';
+var FILES = ['./', 'index.html', 'app.js?v=7', 'bwip-js.min.js?v=7', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }));
@@ -18,7 +18,7 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).then(function (r) {
+    fetch(e.request, { cache: 'no-cache' }).then(function (r) {
       var copy = r.clone();
       caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
       return r;
