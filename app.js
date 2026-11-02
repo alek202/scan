@@ -40,6 +40,7 @@ function setStatus(text, cls) { statusEl.textContent = text; statusEl.className 
 function normalize(raw) {
   var s = String(raw || '').replace(/[\r\n]+$/g, '');
   s = s.replace(/^\][A-Za-z][0-9A-Za-z]/, '');  // префикс идентификатора символики, если есть
+  s = s.replace(/^\x1d+/, '').replace(/\x1d+$/, '');  // GS в начале (FNC1) и в конце не храним
   return s;
 }
 // Код маркировки Честного знака: 01 + GTIN(14) + 21 + серийный номер ...
